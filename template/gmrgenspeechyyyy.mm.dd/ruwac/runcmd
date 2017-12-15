@@ -1,0 +1,3 @@
+sbatch -c 46 --mem-per-cpu=3000 --mem=138000 --nodelist=ambrosia --partition=ai  m4detect -g -v --disable-dep-check --parallel 46 ruwac-aa
+sbatch -c 24 --mem-per-cpu=3000 --mem=72000 --nodelist=mussel1 --partition=gen  m4detect -g -v --disable-dep-check --parallel 24 ruwac2-aa
+sbatch -c 24 --mem-per-cpu=3000 --mem=72000 --nodelist=mussel2 --partition=gen  m4detect -g -v --disable-dep-check --parallel 24 ruwac2-ab

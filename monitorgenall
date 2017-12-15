@@ -1,0 +1,73 @@
+#!/bin/bash
+#
+# Script to monitor the creation of import files 
+# and notify if they are not as expected
+# $1:  LOGFILE from gmrbuild, for sesame output
+# $2:  STEP number of the overall gmrbuild job
+# $3:  IMPORT directory where files will be created
+# $4:  LANG language identifier
+# $5:  COUNT of files for this language
+# $6:  NOTIFYEMAIL: email address to notify
+# $7:  TEMPMSG:  temp message file for email
+# ===================================================================
+echo "$0:  starting..."
+umask 0002
+LOGFILE="$1"
+STEP="$2"
+IMPORT="$3"
+export IMPORT
+LANG="$4"
+COUNT="$5"
+NOTIFYEMAIL="$6"
+TEMPMSG="$7"
+PERIODSECONDS=60
+function checkErrors() {
+  cd $IMPORT 
+  LOG=$1
+  GENERRORS=`grep -v 'duplicated more than 50' $LOG | grep -v 'ValueError: month must be in 1..12' | grep 'rror' | grep -v 'terror' | wc -l`
+  if [[ "$GENERRORS" == 0 ]]; then
+    return 0
+  else 
+    return 1
+  fi
+}
+echo "languange file count for $LANG:  $COUNT"
+TARGETTOTAL=$COUNT
+echo "log file: $LANG-log.txt being compared to target count: $TARGETTOTAL"
+TARGETFILES=0
+PERIODS_NO_UPDATE=0 
+cd $IMPORT 
+while : 
+do
+  echo "periods w/o update: $PERIODS_NO_UPDATE"
+  LASTTARGET=$TARGETFILES
+  TARGETFILES=`grep 'start importing' $LANG-log.txt | wc -l`
+  echo "$LANG files processed for import: $TARGETFILES of target total: $TARGETTOTAL"
+  if [[ "$TARGETFILES" == "$LASTTARGET" ]]; then
+     ((PERIODS_NO_UPDATE+=1))
+  else PERIODS_NO_UPDATE=0
+  fi 
+  if [[ "$PERIODS_NO_UPDATE" -ge 10 ]]; then
+   NOWTIME=$(date +"%Y.%m.%d--%H-%M")
+   echo "$NOWTIME STEP $STEP FAIL: $0. No files processed in $LANG-log.txt for 10 periods. Exiting" > $TEMPMSG
+   cat $TEMPMSG >> $LOGFILE
+   notify $NOTIFYEMAIL $TEMPMSG
+   rm -f $TEMPMSG
+   exit 1
+  fi 
+  if [[ "$TARGETFILES" -ge "$TARGETTOTAL" ]]; then
+     checkErrors "$LANG-log.txt"
+     RCERROR=$?
+     NOWTIME=$(date +"%Y.%m.%d--%H-%M")
+     if [[ "$RCERROR" == 0 ]]; then 
+       echo "$NOWTIME STEP $STEP SUCCESS: $0 $TARGETFILES processed without apparent errors in $LANG-log.txt." > $TEMPMSG
+     else 
+       echo "$NOWTIME STEP $STEP FAIL: $0 $TARGETFILES processed for $LANG, but errors found in $LANG-log.txt." > $TEMPMSG
+     fi
+     cat $TEMPMSG >> $LOGFILE
+     notify $NOTIFYEMAIL $TEMPMSG
+     rm -f $TEMPMSG
+     exit $RCERROR
+  fi
+  sleep $PERIODSECONDS
+done

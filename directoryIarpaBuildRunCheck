@@ -1,0 +1,40 @@
+#!/bin/bash
+# ===================================================================
+#
+# Create directory, run test and check output lines for IARPA gold tests 
+# $1:  LOGFILE to update with results
+# $2:  STEP number of the overall gmrbuild job
+# $3:  NOTIFYEMAIL: email address to notify
+# $4:  TEMPMSG:  temp message file for email
+# $5:  yyyy.mm.dd
+# $6:  LOGDETAILFILE
+# $TEMPLATE; normally  iarpatest
+# $M4CONFIG : normally blank 
+# ===================================================================
+echo "$0 starting..."
+LOGFILE="$1"
+STEP="$2"
+NOTIFYEMAIL="$3"
+TEMPMSG="$4"
+NOW="$5"
+LOGDETAILFILE="$6"
+cd $GOLD_DIR
+NEW_DIR=iarpa$NOW
+rm -rf $NEW_DIR
+mkdir $NEW_DIR >> $LOGDETAILFILE 2>&1
+cd $NEW_DIR >> $LOGDETAILFILE 2>&1
+cp  ~/bin/template/$TEMPLATE/*  .  >> $LOGDETAILFILE 2>&1
+./runcmd $M4CONFIG >> $LOGDETAILFILE 2>&1
+LINES=24
+RESULTS=`cat analysis.out | wc -l`
+NOWTIME=$(date +"%Y.%m.%d--%H-%M")
+if [[ "$LINES" == "$RESULTS" ]]; then
+   echo "$NOWTIME STEP $STEP SUCCESS: $0. Output file: $GOLD_DIR/$TEMPLATE/$NEW_DIR/analysis.out" >> $LOGFILE
+   exit 0
+else
+   echo "$NOWTIME STEP $STEP FAIL: $0. Expected $LINES records but found $RESULTS in $GOLD_DIR/$TEMPLATE/$NEW_DIR/analysis.out." > $TEMPMSG
+   cat $TEMPMSG >> $LOGFILE
+   notify $NOTIFYEMAIL $TEMPMSG
+   rm -f $TEMPMSG
+   exit 1
+fi

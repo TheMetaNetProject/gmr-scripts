@@ -1,0 +1,53 @@
+#!/bin/bash
+#
+# Script to monitor the number of files in a directory 
+# and notify if they are not as expected
+# $1:  source directory containing the target number of files
+# $2:  target directory where corresponding number of files are to be created
+# $3:  identifier, e.g., language or corpus
+# $4:  (optional) delta in the number of files, due to pre-loaded template files
+# ===================================================================
+echo "monitordir:  starting..."
+umask 0002
+SOURCEDIR="$1"
+TARGETDIR="$2"
+ID=$3
+if [[ -z "$4" ]]; then
+   DELTA="0"
+else DELTA="$4"
+fi 
+NOTIFYEMAIL="stevedoubleday@gmail.com"
+TEMPMSG="tempmsg.txt"
+PERIODSECONDS=60
+SOURCEFILES=`ls $SOURCEDIR | wc -l`
+echo "source directory file count:  $SOURCEFILES"
+TARGETTOTAL=$(($SOURCEFILES+$DELTA))
+echo "source: $SOURCEDIR being compared to target: $TARGETDIR with expected delta in the numbers: $DELTA, giving targettotal $TARGETTOTAL"
+TARGETFILES=0
+PERIODS_NO_UPDATE=0 
+while : 
+do
+  echo "periods w/o update: $PERIODS_NO_UPDATE"
+  LASTTARGET=$TARGETFILES
+  sleep $PERIODSECONDS
+  TARGETFILES=`ls $TARGETDIR | wc -l`
+  echo "$ID target directory file count: $TARGETFILES of target total: $TARGETTOTAL"
+  if [[ "$TARGETFILES" == "$LASTTARGET" ]]; then
+     ((PERIODS_NO_UPDATE+=1))
+  else PERIODS_NO_UPDATE=0
+  fi 
+  if [[ "$PERIODS_NO_UPDATE" -ge 10 ]]; then
+    echo "no update for 10 periods; exiting"
+    rm -f $TEMPMSG	
+    echo "Failure for $ID: No update to $TARGETDIR for 10 periods." > $TEMPMSG
+    notify $NOTIFYEMAIL $TEMPMSG    
+    break
+  fi 
+  if [[ "$TARGETFILES" -ge "$TARGETTOTAL" ]]; then
+     echo "success; exiting"
+    rm -f $TEMPMSG	
+    echo "Success for $ID: $TARGETDIR has the target number of files: $TARGETFILES." > $TEMPMSG
+    notify $NOTIFYEMAIL $TEMPMSG    
+     break
+  fi
+done

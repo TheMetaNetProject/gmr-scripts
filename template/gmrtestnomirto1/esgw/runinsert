@@ -1,0 +1,5 @@
+source /n/banquet/dc/sjdayday/temp_couchdb
+curl -X DELETE $COUCHMIRTO1/test_docs_es
+curl -X PUT $COUCHMIRTO1/test_docs_es
+export PYTHONUNBUFFERED=Y
+sbatch -c 10 --mem-per-cpu=1000 --mem=20000 --nodelist=mirto1 --partition=ai couchdbimport -l es -v --parallel 10 --port 5984 -f Result* 

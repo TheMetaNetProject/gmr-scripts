@@ -1,0 +1,30 @@
+#!/bin/bash
+# ===================================================================
+# Submit extraction to slurm for each corpus, with monitor
+# Some scripts may fail if this is not submitted on ambrosia
+# $1:  LOGFILE to update with results
+# $2:  STEP number of the overall gmrbuild job
+# $3:  NOTIFYEMAIL: email address to notify
+# $4:  TEMPMSG:  temp message file for email
+# $5:  NOW: yyyy.mm.dd
+# $6:  LOGDETAILFILE
+# ===================================================================
+echo "$0 starting..."
+LOGFILE="$1"
+STEP="$2"
+NOTIFYEMAIL="$3"
+TEMPMSG="$4"
+NOW="$5"
+LOGDETAILFILE="$6"
+BASE=~/test
+function extract() {
+  export TARGETDIR=$BASE
+  export SOURCEDIR=$BASE
+  cd $TARGETDIR
+  echo "submitting extract for $1 with target: $TARGETDIR and source: $SOURCEDIR"
+  sh runcmd
+  nohup monitorgmrdirtest $LOGFILE $STEP $SOURCEDIR $TARGETDIR $1 $NOTIFYEMAIL $TEMPMSG $LOGDETAILFILE & 
+}
+rm -f Result_afp_eng_199405_001.json.gz
+extract EN  
+echo "$0: complete."

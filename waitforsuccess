@@ -1,0 +1,28 @@
+#!/bin/bash
+#
+# Script that waits for stepcheck to indicate that a step has completed successfully 
+# The log file is checked every $WAITSECONDS. The script will run indefinitely, until the success condition is met.  
+#  
+# $1: log file name
+# $2: step number (x)
+# $3: number of records for step x required for success (defaults to 1) 
+# ===================================================================
+umask 0002
+LOGFILE="$1"
+STEP="$2"
+if [[ -z "$3" ]]; then
+   NUMSUCCESS="1"
+else NUMSUCCESS="$3"
+fi 
+echo "waitforsuccess:  log file $LOGFILE, step number $STEP, requiring $NUMSUCCESS records"
+WAITSECONDS=60
+SUCCESSES=0
+while : 
+do
+  stepcheck $LOGFILE $STEP $NUMSUCCESS
+  if [[ "$?" == 0  ]]; then
+     echo "Step $STEP completed; exiting waitforsuccess."
+     break
+  fi 
+  sleep $WAITSECONDS
+done

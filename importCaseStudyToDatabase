@@ -1,0 +1,50 @@
+#!/bin/bash
+# ===================================================================
+# Import csv files to database for case study 
+# Note:  this must run on ambrosia.  Check space first for /xa/metanet
+# $1:  LOGFILE to update with results
+# $2:  STEP number of the overall gmrbuild job
+# $3:  NOTIFYEMAIL: email address to notify
+# $4:  TEMPMSG:  temp message file for email
+# $5:  SOURCE formatted gmryyyy.mm.dd
+# $6:  NOWDB date identifier for the database
+# ===================================================================
+echo "$0 starting..."
+LOGFILE="$1"
+STEP="$2"
+NOTIFYEMAIL="$3"
+TEMPMSG="$4"
+SOURCE="$5"
+NOWDB="$6"
+IMPORT="$DBSERVER_DIR/$SOURCE/import"
+#IMPORT="$DBSERVER_DIR/$SOURCE/importCasestudy"
+# until IntegrityError fixed
+EXPECTED=11
+#EXPECTED=7
+function checkErrors() {
+  IMPORTCOUNT=`grep 'importing' *-import-case-log.txt | wc -l` 
+  export IMPORTCOUNT
+  ERRORS=`grep 'rror' *-import-case-log.txt | wc -l`
+  if [[ "$IMPORTCOUNT" == "$EXPECTED" && "$ERRORS" == 0 ]]; then
+    return 0
+  else 
+    return 1
+  fi
+}
+cd $IMPORT
+echo "$0 running $IMPORT/importcaseall.sh"
+./importcaseall.sh $NOWDB 
+RCIMPORT=$?
+checkErrors
+RCERROR=$?
+NOWTIME=$(date +"%Y.%m.%d--%H-%M")
+if [[ "$RCIMPORT" -eq 0 && "$RCERROR" -eq 0 ]]; then
+   echo "$NOWTIME STEP $STEP SUCCESS: $0" >> $LOGFILE
+   exit 0
+else
+   echo "$NOWTIME STEP $STEP FAIL: $0. database import: $RCIMPORT from importcaseall.sh, $RCERROR from checking $IMPORT/*-import-case-log.txt for errors or unexpected number of import statements (expected $EXPECTED, found $IMPORTCOUNT)." > $TEMPMSG
+   cat $TEMPMSG >> $LOGFILE
+   notify $NOTIFYEMAIL $TEMPMSG
+   rm -f $TEMPMSG
+   exit 1
+fi

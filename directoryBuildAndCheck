@@ -1,0 +1,47 @@
+#!/bin/bash
+# ===================================================================
+#
+# Create directory structure for the gmr extraction phase
+# $1:  LOGFILE to update with results
+# $2:  STEP number of the overall gmrbuild job
+# $3:  NOTIFYEMAIL: email address to notify
+# $4:  TEMPMSG:  temp message file for email
+# $5:  yyyy.mm.dd
+# $6:  LOGDETAILFILE
+# $7:  TEMPLATE; normally gmryyyy.mm.dd
+# ===================================================================
+echo "$0 starting..."
+LOGFILE="$1"
+STEP="$2"
+NOTIFYEMAIL="$3"
+TEMPMSG="$4"
+NOW="$5"
+LOGDETAILFILE="$6"
+TEMPLATE="$7"
+if [[ ( "$TEST" == "Y" ) && ( -z "$CASEONLY" ) ]]; then
+  echo "building gmrtest"
+  TEMPLATE=gmrtest
+fi
+cd $JSON_DIR
+mkdir gmr$NOW >> $LOGDETAILFILE 2>&1
+cd gmr$NOW >> $LOGDETAILFILE 2>&1
+if [[ "$CASEONLY" == "Y" ]]; then
+  dirs='casestudy'
+else 
+  dirs='bijankhan bnc engw esgw hamshahri ruwac casestudy'
+fi
+for d in $dirs; do
+  mkdir $d >> $LOGDETAILFILE 2>&1
+  cp -RP ~/bin/template/$TEMPLATE/$d/*  $d/ >> $LOGDETAILFILE 2>&1
+done  
+NOWTIME=$(date +"%Y.%m.%d--%H-%M")
+if [[ -f $JSON_DIR/gmr$NOW/casestudy/runcmd ]]; then
+   echo "$NOWTIME STEP $STEP SUCCESS: $0" >> $LOGFILE
+   exit 0
+else
+   echo "$NOWTIME STEP $STEP FAIL: $0. At least one file/directory not created in $JSON_DIR/gmr$NOW." > $TEMPMSG
+   cat $TEMPMSG >> $LOGFILE
+   notify $NOTIFYEMAIL $TEMPMSG
+   rm -f $TEMPMSG
+   exit 1
+fi

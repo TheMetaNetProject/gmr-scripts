@@ -1,0 +1,37 @@
+#!/bin/bash
+# ===================================================================
+# create the GMR database dump to be submitted to IARPA
+# Note:  this must run on ambrosia
+# $1:  LOGFILE to update with results
+# $2:  STEP number of the overall gmrbuild job
+# $3:  NOTIFYEMAIL: email address to notify
+# $4:  TEMPMSG:  temp message file for email
+# $5:  NOWDB database identifier formatted yyyymmdd
+# -Steve Doubleday
+# ===================================================================
+echo "$0 starting..."
+LOGFILE="$1"
+STEP="$2"
+NOTIFYEMAIL="$3"
+TEMPMSG="$4"
+NOWDB="$5"
+ERRORLOG=error.log
+cd $GMR_DIR
+rm -f $ERRORLOG
+./creategmrdump.sh $NOWDB >> $ERRORLOG 2>&1
+ERR1=`grep "ERROR" $ERRORLOG | wc -l` 
+ERR2=`grep "error" $ERRORLOG | wc -l` 
+NOWTIME=$(date +"%Y.%m.%d--%H-%M")
+if [[ "$ERR1" -eq 0 && "$ERR2" -eq 0 ]]; then
+   echo "$NOWTIME STEP $STEP SUCCESS: $0 GMR database dumped to $GMR_DIR/icsi_gmr_v*_$NOWDB.sql.gz" > $TEMPMSG
+   cat $TEMPMSG >> $LOGFILE
+   notify $NOTIFYEMAIL $TEMPMSG
+   rm -f $TEMPMSG
+   exit 0
+else
+   echo "$NOWTIME STEP $STEP FAIL: $0. Errors found in $GMR_DIR/$ERRORLOG during GMR database dump." > $TEMPMSG
+   cat $TEMPMSG >> $LOGFILE
+   notify $NOTIFYEMAIL $TEMPMSG
+   rm -f $TEMPMSG
+   exit 1
+fi

@@ -1,0 +1,28 @@
+#!/bin/bash 
+#  $1 path to source case directory 
+#  $2 path characters to be inserted at beginning
+#  $3 target directory where case* files to be built
+# Steve Doubleday 
+#
+if [[ -z "$3" ]]; then
+  echo "./buildcasefiles path/to/casedir relativeEscapedPathToInsertBeforeEachFileName path/to/targetdir"
+  echo "e.g.,...  '..\/casexxxx\/' "
+  exit 1
+fi  
+TARGET=$3
+cd $TARGET
+rm infile*
+rm case*
+(cd "$1" && ls -S *.gz) > infilessize.txt
+TOTAL=`cat infilessize.txt | wc -l`
+REM=$[$TOTAL-90]
+echo "total = $TOTAL reminder $REM"
+sed 's,^\(.\{0\}\),'"$2"','  infilessize.txt > infiles.txt
+head -90 infiles.txt > infileslarge.txt
+
+head -30 infileslarge.txt > infileslargest.txt
+tail -60 infileslarge.txt > infilesmed.txt
+tail -$REM infiles.txt > infilessmall.txt
+split -l3 -d infileslargest.txt casebig-
+split -l6 -d infilesmed.txt casemed-
+split -l9 -d infilessmall.txt casesmall-

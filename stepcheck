@@ -1,0 +1,29 @@
+#!/bin/bash
+#
+# Script that looks for 1 or more records in a log file indicating success of a step 
+# expecting n instances of a line beginning with this string:
+#  STEP x SUCCESS
+# $1: log file name
+# $2: step number (x)
+# $3: number of records for step x required for success (defaults to 1) 
+# exit code 
+# 0 if the required number of success records was found
+# 1 otherwise; implies step has not yet run, or has previously failed.
+# ===================================================================
+umask 0002
+LOGFILE="$1"
+STEP="$2"
+if [[ -z "$3" ]]; then
+   NUMSUCCESS="1"
+else NUMSUCCESS="$3"
+fi 
+echo "stepcheck:  log file $LOGFILE, step number $STEP, requiring $NUMSUCCESS records"
+SUCCESSES=`grep "STEP $STEP SUCCESS" $LOGFILE  | wc -l`
+echo "found $SUCCESSES successes."
+if [[ "$SUCCESSES" -ge "$NUMSUCCESS" ]]; then
+  echo "Step $STEP completed with $SUCCESSES successes."
+  exit 0
+else  
+  echo "Step $STEP has not yet completed successfully."
+  exit 1
+fi 

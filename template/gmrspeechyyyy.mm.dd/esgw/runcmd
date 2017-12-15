@@ -1,0 +1,6 @@
+sbatch -c 8 --mem-per-cpu=3000 --mem=24000 --nodelist=mirto1 --partition=ai  m4detect -g -v --disable-dep-check --parallel 8 esgw-aa
+sbatch -c 8 --mem-per-cpu=3000 --mem=24000 --nodelist=mirto1 --partition=ai  m4detect -g -v --disable-dep-check --parallel 8  esgw-ab
+sbatch -c 7 --mem-per-cpu=3000 --mem=24000 --nodelist=ambrosia --partition=ai  m4detect -g -v --disable-dep-check --parallel 7 esgw-ac
+sbatch -c 7 --mem-per-cpu=3000 --mem=24000 --nodelist=ambrosia --partition=ai  m4detect -g -v --disable-dep-check --parallel 7 esgw-ad
+sbatch -c 8 --mem-per-cpu=3000 --mem=24000 --nodelist=kajiki4 --partition=speech  m4detect -g -v --disable-dep-check --parallel 8 esgw-ae
+sbatch -c 8 --mem-per-cpu=3000 --mem=24000 --nodelist=kajiki4 --partition=speech  m4detect -g -v --disable-dep-check --parallel 8 esgw-af

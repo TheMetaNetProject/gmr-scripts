@@ -1,0 +1,12 @@
+#!/bin/bash
+# ===================================================================
+#
+# Notify of results via email 
+# $1: email addresses, comma delimited:  a@b.com,c@d.com
+# $2: file of message contents 
+# ===================================================================
+echo "notify: starting..."
+ADDRESS=$1
+CONTENTS=$2
+cat $2 | mail -s "GMR status" $1
+echo "notify: complete."

@@ -1,0 +1,129 @@
+#!/bin/bash
+# ===================================================================
+# Script to rebuild the GMR
+# Runs under mnauto
+# Runs continually, invoking both immediate steps and batch steps
+# To restart, invoke as "gmrbuild yyyy.mm.dd" 
+# using the yyyy.mm.dd value that was created during the initial run. 
+# All successful steps will be skipped on the restart.  
+# To force later steps to be re-executed, delete their "SUCCESS" records from $LOGFILE.  
+# Note:  kill any running gmrbuild and waitforsuccess tasks and check for and deal with sub-processes started by the current step.
+#   Otherwise, steps that are in progress will be started again.  
+# Note:  check the scripts to be restarted for their side effects. 
+# Note:  Successful restart of step 8 is dependent on the $NOWFILE date string;
+#  will need to be hard-coded if the date has changed since step 7 started
+# To add new addresses to the list of folks who are notified:
+#  NOTIFYEMAIL="stevedoubleday@gmail.com,jhong@icsi.berkeley.edu,newaddress@somewhere.com"
+# Step 4 is the extraction step.  Normally it runs on mirto1/2:
+#runstep 4 1 ~/bin directoryBuildAndCheck "$NOW $LOGDETAILFILE gmryyyy.mm.dd"
+# To have it also use the rest of the gen pool (slivo's & mussel's)+ambrosia:
+#runstep 4 1 ~/bin directoryBuildAndCheck "$NOW $LOGDETAILFILE gmrgenyyyy.mm.dd"
+#
+# To run as a regression test:  "gmrbuild test" (case sensitive)
+# The regression test will add a "Tn" suffix to the $NOW value, e.g., yyyy.mm.ddT1
+# See setNow() function below for details 
+# To restart a regression test:  "gmrbuild test yyyy.mm.ddT1"
+# -Steve Doubleday 
+# ===================================================================
+umask 0002
+export JAVA_HOME=/usr/lib/jvm/jre-1.7.0-oracle.x86_64
+export PATH=$JAVA_HOME/bin:$PATH
+export JSON_DIR="/n/picnic/xw/metanet/corpora/json"
+export DBSERVER_DIR="/xa/metanet"
+export RDF_DIR="/u/metanet/repository/rdf"
+export CXNS_DIR="/u/metanet/extraction/cxns"
+export GMR_DIR="/u/metanet/repository/gmrdumps"
+NOW=$(date +"%Y.%m.%d")
+# setNow is used during regression testing to allow multiple regression
+# tests to run during the same day, without conflicts with each other or with 
+# a normal production GMR run.  
+# looks for the presence of a log file; 
+# adds a suffix "Tn" where n=1, 2, etc.  until an unused filename is found. 
+# NOW format:  yyyy.mm.ddTx
+function setNow() {
+  LOGS="$HOME/logs"
+  SUFFIX=1
+  TEMPNOW="${NOW}T${SUFFIX}"
+  CHECK="gmr$TEMPNOW.txt"
+  while [[ -f "$LOGS/$CHECK" ]]
+  do
+    echo "checking for $CHECK"
+    (( SUFFIX += 1))
+    TEMPNOW="${NOW}T${SUFFIX}"
+    CHECK="gmr$TEMPNOW.txt"
+  done
+  NOW=$TEMPNOW
+  export NOW
+  echo "NOW value for this GMR test run: $NOW"
+}
+if [[ -z "$1" ]]; then
+  echo "GMRBUILD: running GMR for $NOW"
+elif [[ "$1" == "test" ]]; then
+    TEST="Y"
+    export TEST
+    if [[ -z "$2" ]]; then
+      setNow "$NOW"
+      echo "GMRBUILD: running GMR regression test"
+    else
+      NOW="$2"
+      echo "GMRBUILD: re-running GMR regression test for $NOW"
+    fi
+else
+  NOW="$1"
+  echo "GMRBUILD: re-running GMR for $NOW"
+fi
+export NOW
+NOWDB=`echo "$NOW" | sed 's/\.//g'`
+echo "NOWDB = $NOWDB"
+LOGFILE=$HOME/logs/gmr$NOW.txt
+export LOGFILE
+LOGDETAILFILE=$HOME/logs/gmrdetail$NOW.txt
+export LOGDETAILFILE
+NOWTIME=$(date +"%Y.%m.%d--%H-%M")
+echo "$NOWTIME gmrbuild:  starting for $NOW" | tee -a $LOGFILE 
+NOTIFYEMAIL="stevedoubleday@gmail.com"
+#NOTIFYEMAIL="stevedoubleday@gmail.com,jhong@icsi.berkeley.edu"
+#NOTIFYEMAIL="stevedoubleday@gmail.com,jhong@icsi.berkeley.edu,collinb@icsi.berkeley.edu"
+export NOTIFYEMAIL
+TEMPMSG="tempmsg.txt"
+export TEMPMSG
+# runstep executes a step and will wait indefinitely for success
+# $1: the number of this step
+# $2: the number of success records required for this step in $LOGFILE
+# $3: directory from which to execute the script
+# $4: script to execute
+# $5: (optional) string of arguments to the script
+# Scripts have these responsiblities
+#  Take $LOGFILE as $1, $STEP as $2, $NOTIFYEMAIL as $3, $TEMPMSG as $4, optional $ARGS as $5
+#  Run in foreground, submitting long-running processes in background
+#  If successful, add one record per independent process to $LOGFILE, 
+#  in format:  $NOWTIME STEP $STEP SUCCESS .... 
+#  exit code 0
+#  else add record $NOWTIME STEP $STEP FAIL with explanation
+#  exit code 1
+#  use notify script to alert support to failure [optionally, success]
+function runstep() {
+  STEP="$1"
+  NUMSUCCESS="$2"
+  EXECDIR="$3"
+  SCRIPT="$4"
+  ARGS="$5"
+  NOWTIME=$(date +"%Y.%m.%d--%H-%M")
+  stepcheck $LOGFILE $STEP $NUMSUCCESS
+  if [[ "$?" == 1  ]]; then
+     echo "$NOWTIME Step $STEP: executing $SCRIPT."
+     cd $EXECDIR 
+     ./$SCRIPT $LOGFILE $STEP $NOTIFYEMAIL $TEMPMSG $ARGS >> $LOGDETAILFILE 2>&1
+     waitforsuccess $LOGFILE $STEP $NUMSUCCESS
+  fi
+}
+runstep 1 1 ~/bin triplestoreReloadAndCheckTest $LOGDETAILFILE
+runstep 2 1 ~/bin loadTargetWordCachesTest $NOW $LOGDETAILFILE
+runstep 3 1 ~/bin submitExtractsTest $NOW $LOGDETAILFILE
+runstep 4 1 ~/bin shutdownTripleStoreTest $LOGDETAILFILE
+NOWTIME=$(date +"%Y.%m.%d--%H-%M")
+echo "$NOWTIME gmrbuild:  completed $NOW." | tee  $TEMPMSG
+cat $TEMPMSG >> $LOGFILE
+notify $NOTIFYEMAIL $TEMPMSG
+rm -f $TEMPMSG
+exit 0

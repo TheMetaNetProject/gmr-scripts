@@ -1,0 +1,4 @@
+sbatch -c 16 --mem-per-cpu=3000 --mem=48000 --nodelist=kajiki1 --partition=speech m4detect -g -v --disable-dep-check --parallel 16 ham-aa
+sbatch -c 16 --mem-per-cpu=3000 --mem=48000 --nodelist=kajiki1 --partition=speech m4detect -g -v --disable-dep-check --parallel 16 ham-ab
+sbatch -c 16 --mem-per-cpu=3000 --mem=48000 --nodelist=squid7 --partition=speech  m4detect -g -v --disable-dep-check --parallel 16 ham-ac
+sbatch -c 16 --mem-per-cpu=3000 --mem=48000 --nodelist=squid8 --partition=speech  m4detect -g -v --disable-dep-check --parallel 16 ham-ad

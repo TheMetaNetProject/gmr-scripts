@@ -1,0 +1,2 @@
+sbatch -c 13 --mem-per-cpu=3000 --mem=39000 --nodelist=mirto1 --partition=ai  m4detect -g -v --disable-dep-check --parallel 13 esgw-aa
+sbatch -c 13 --mem-per-cpu=3000 --mem=39000 --nodelist=mirto2 --partition=ai  m4detect -g -v --disable-dep-check --parallel 13 esgw-ab

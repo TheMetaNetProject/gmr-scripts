@@ -1,0 +1,1 @@
+sbatch -c 1 --mem-per-cpu=4000 --mem=4000 --nodelist=ambrosia --partition=ai  m4detect -g -v --disable-dep-check --parallel 1 infiles.txt

@@ -1,0 +1,38 @@
+#!/bin/bash
+# ===================================================================
+# cleanup old GMR run
+# Note:  this must run on ambrosia.
+# $1:  GMRRUN formatted yyyy.mm.dd, with optional suffix Tx
+# -Steve Doubleday
+# ===================================================================
+echo "$0 starting..."
+if [[ -z "$1" ]]; then 
+  echo "usage:  yyyy.mm.dd[Tx] is required to identify which run to clean up."
+  exit 1
+else 
+  GMRRUN="$1"
+  GMRDIR="gmr$GMRRUN"
+fi
+CLEANUPPATH=/xa/metanet
+CLEANUPDIR=$CLEANUPPATH/$GMRDIR
+ARCHIVEPATH=/n/picnic/xw/metanet/gmr
+DBSERVER=ambrosia
+if [[ ! -d $CLEANUPDIR ]]; then
+  echo "directory to be cleaned up does not exist or this is not running on $DBSERVER: $CLEANUPDIR"
+  exit 2
+fi
+cd $ARCHIVEPATH
+mkdir $GMRDIR
+cd $GMRDIR
+rsync -ah $CLEANUPDIR/import* .
+RSYNCRC="$?"
+if [[ "$RSYNCRC" -eq 0 ]]; then
+  cd $CLEANUPPATH
+  echo "In $CLEANUPPATH, about to delete $GMRDIR"
+  rm -rf $GMRDIR
+  echo "cleanup complete for $GMRRUN"
+  exit 0
+else
+  echo "non-zero return from 'rsync -ah $CLEANUPDIR/import .':  $RSYNCRC"
+  exit 3
+fi

@@ -1,0 +1,64 @@
+#!/bin/bash
+# ===================================================================
+# update tables with core lexical support: cm2lm_core_case, cm2lm_core_general
+# Note:  this must run on metamucil
+# $1:  LOGFILE to update with results
+# $2:  STEP number of the overall gmrbuild job
+# $3:  NOTIFYEMAIL: email address to notify
+# $4:  TEMPMSG:  temp message file for email
+# $5:  SOURCE formatted gmryyyy.mm.dd
+# $6:  NOWDB database identifier formatted yyyymmdd
+# $7:  LOGDETAILFILE: messages from gen_xca_reports
+# Needs to run against the icsi_gmr_yyyymmdd database, to take advantage of its indices.
+# -Steve Doubleday
+# ===================================================================
+LOGFILE="$1"
+STEP="$2"
+NOTIFYEMAIL="$3"
+TEMPMSG="$4"
+SOURCE="$5"
+NOWDB="$6"
+LOGDETAILFILE="$7"
+echo "$0 starting..." | tee -a $LOGDETAILFILE
+cd $HOME/logs
+DBNAME="icsi_gmr_$NOWDB"
+DBPASS="iarpam4"
+RCERR=0
+if [[  -z "$CASEONLY"  ]]; then
+  echo "coresupport -v --gdb-name $DBNAME --gdb-pw xxxxxx"
+  coresupport -v --gdb-name $DBNAME --gdb-pw $DBPASS 
+  RCERR=$?
+  NOWTIME=$(date +"%Y.%m.%d--%H-%M")
+  echo "coresupport for general returned control at $NOWTIME with rc $RCERR"
+fi 
+echo "coresupport -v --gdb-name $DBNAME --gdb-pw xxxxxx --case-mode"
+coresupport -v --gdb-name $DBNAME --gdb-pw $DBPASS --case-mode 
+RCERRCASE=$?
+NOWTIME=$(date +"%Y.%m.%d--%H-%M")
+echo "coresupport for case study returned control at $NOWTIME with rc $RCERRCASE"
+if [[ ("$RCERR" -eq 0  && "$RCERRCASE" -eq 0) && ( -z "$CASEONLY"  )  ]]; then
+     echo "$NOWTIME STEP $STEP SUCCESS: $0 coresupport completed." > $TEMPMSG
+     cat $TEMPMSG >> $LOGFILE
+     notify $NOTIFYEMAIL $TEMPMSG
+     rm -f $TEMPMSG
+     exit 0
+   else
+     echo "$NOWTIME STEP $STEP FAIL: $0. coresupport did not complete successfully.  Details in $LOGDETAILFILE." > $TEMPMSG
+     cat $TEMPMSG >> $LOGFILE
+     notify $NOTIFYEMAIL $TEMPMSG
+     rm -f $TEMPMSG
+     exit 1
+fi 
+if [[ ( "$RCERRCASE" -eq 0) && ( "$CASEONLY" == "Y"  )  ]]; then
+     echo "$NOWTIME STEP $STEP SUCCESS: $0 coresupport for case study completed." > $TEMPMSG
+     cat $TEMPMSG >> $LOGFILE
+     notify $NOTIFYEMAIL $TEMPMSG
+     rm -f $TEMPMSG
+     exit 0
+   else
+     echo "$NOWTIME STEP $STEP FAIL: $0. core support for case study did not complete successfully.  Details in $LOGDETAILFILE." > $TEMPMSG
+     cat $TEMPMSG >> $LOGFILE
+     notify $NOTIFYEMAIL $TEMPMSG
+     rm -f $TEMPMSG
+     exit 1
+fi  

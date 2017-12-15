@@ -1,0 +1,2 @@
+sbatch -c 3 --mem-per-cpu=3000 --mem=9000 --nodelist=mirto1 --partition=ai  m4detect -g -v --disable-dep-check --parallel 3 bnc-aa
+sbatch -c 3 --mem-per-cpu=3000 --mem=9000 --nodelist=mirto2 --partition=ai  m4detect -g -v --disable-dep-check --parallel 3 bnc-ab

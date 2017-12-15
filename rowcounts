@@ -1,0 +1,13 @@
+#!/bin/sh
+# ======================================================================
+# row counts from icsi database 
+# ======================================================================
+
+umask 0002
+
+export PATH=/u/metanet/tools/mysql64/bin:$PATH
+
+DSTAMP="$1"
+GMRDBNAME=icsi_gmr_$DSTAMP
+#
+cat ~/bin/row_321.sql | mysql -u mnadmin $GMRDBNAME | grep -v  'count' > row_$DSTAMP.txt

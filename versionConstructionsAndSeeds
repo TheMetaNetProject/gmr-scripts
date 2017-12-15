@@ -1,0 +1,51 @@
+#!/bin/bash
+# version language constructions and seeds to git, if there are any changes 
+# If running under test=Y, a previous commit will be checked out 
+# during GMR.  Note that this creates an exposure during the duration of 
+# the GMR that updates to the data would be lost. 
+#
+# Does not check for errors; updates log with success and exit 0 
+# $1:  LOGFILE to update with results
+# $2:  STEP number of the overall gmrbuild job
+# $3:  NOTIFYEMAIL: email address to notify
+# $4:  TEMPMSG:  temp message file for email
+# $5:  yyyy.mm.dd
+# $CXNS_TEST_TAG: current constructions used for regression testing
+# $SEEDS_TEST_TAG: current seeds used for regression testing
+# ===================================================================
+umask 0002
+echo "$0 starting..."
+LOGFILE="$1"
+STEP="$2"
+NOTIFYEMAIL="$3"
+TEMPMSG="$4"
+NOW="$5"
+CXNS_TEST_TAG="2014.07.22"
+SEEDS_TEST_TAG="2014.11.14-prior"
+NOWTIME=$(date +"%Y.%m.%d--%H-%M")
+function gitDir() {
+  TARGET=$1
+  TEST_TAG=$2
+  cd $TARGET
+  if [[ ( "$TEST" == "Y" ) && ( -z "$CASEONLY" ) ]]; then
+    gmrcommit $TARGET N "$NOW-prior"
+    git checkout $TEST_TAG
+    echo "checked out $TEST_TAG in $TARGET"
+  else
+    gmrcommit $TARGET Y "$NOW"
+  fi
+}
+: ${CXNS_DIR:?"CXNS_DIR must be set.  Normally done in gmrbuild."}
+: ${SEEDS_DIR:?"SEEDS_DIR must be set.  Normally done in gmrbuild."}
+gitDir $CXNS_DIR $CXNS_TEST_TAG
+gitDir $SEEDS_DIR $SEEDS_TEST_TAG
+#cd $CXNS_DIR
+#if [[ ( "$TEST" == "Y" ) && ( -z "$CASEONLY" ) ]]; then
+#  gmrcommit $CXNS_DIR N "$NOW-prior"
+#  git checkout $TEST_TAG
+#  echo "checked out $TEST_TAG in $CXNS_DIR"
+#else
+#  gmrcommit $CXNS_DIR Y "$NOW"
+#fi
+echo "$NOWTIME STEP $STEP SUCCESS: $0" >> $LOGFILE
+exit 0

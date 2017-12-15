@@ -1,0 +1,8 @@
+#!/bin/bash
+# simple rename of a file in same directory, prefixed 
+umask 0002
+if [[ -z "$2" ]]; then
+  echo "rn:  requires prefix and file to be renamed"
+  exit 0
+fi
+mv $2 $1$2

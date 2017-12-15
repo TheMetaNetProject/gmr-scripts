@@ -1,0 +1,33 @@
+#!/bin/bash
+# runstep executes a step and will wait indefinitely for success
+# $1: the number of this step
+# $2: the number of success records required for this step in $LOGFILE
+# $3: directory from which to execute the script
+# $4: script to execute
+# $5: (optional) string of arguments to the script
+# Scripts have these responsiblities
+#  Take $LOGFILE as $1, $STEP as $2, $NOTIFYEMAIL as $3, $TEMPMSG as $4, optional $ARGS as $5
+#  Run in foreground, submitting long-running processes in background
+#  If successful, add one record per independent process to $LOGFILE, 
+#  in format:  $NOWTIME STEP $STEP SUCCESS .... 
+#  exit code 0
+#  else add record $NOWTIME STEP $STEP FAIL with explanation
+#  exit code 1
+#  use notify script to alert support to failure [optionally, success]
+STEP="$1"
+NUMSUCCESS="$2"
+EXECDIR="$3"
+SCRIPT="$4"
+ARGS="$5"
+NOWTIME=$(date +"%Y.%m.%d--%H-%M")
+if [[ -z "$STEPONLY" || "$STEP" == "$STEPONLY" ]]; then
+  stepcheck $LOGFILE $STEP $NUMSUCCESS
+  if [[ "$?" == 1  ]]; then
+    echo "$NOWTIME Step $STEP: executing $SCRIPT."
+    cd $EXECDIR
+    ./$SCRIPT $LOGFILE $STEP $NOTIFYEMAIL $TEMPMSG $ARGS >> $LOGDETAILFILE 2>&1
+    waitforsuccess $LOGFILE $STEP $NUMSUCCESS 
+  fi
+else 
+  echo "$0 skipping step $STEP because does not match requested step $STEPONLY"
+fi

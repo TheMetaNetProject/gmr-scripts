@@ -1,0 +1,13 @@
+#!/bin/bash 
+# run iarpatests
+if [[ -n $1 ]]; then 
+  M4CONFIG="--config=$1"
+fi
+umask 0002
+LANGS='en es ru fa'
+for LANG in $LANGS; do
+  gsdb2m4detectinput $LANG $LANG-test 'POVERTY,WEALTH,TAXATION,DEMOCRACY,ELECTIONS,GOVERNMENT,BUREAUCRACY' 2>&1
+  m4detect -v -d $M4CONFIG ${LANG}-test.xml >> ${LANG}-m4detect.out 2>&1
+  comparegold -v -g ${LANG}-test.csv  -x Result_${LANG}-test.xml -j ${LANG}-test.xml.post.json -o compare_${LANG}-test.csv 2>&1
+  analysisgold compare_${LANG}-test.csv >> analysis.out
+done

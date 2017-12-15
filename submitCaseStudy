@@ -1,0 +1,35 @@
+#!/bin/bash
+# ===================================================================
+# Submit extraction to slurm for each case study. 
+# Some scripts may fail if this is not submitted on ambrosia
+# $1:  LOGFILE to update with results
+# $2:  STEP number of the overall gmrbuild job
+# $3:  NOTIFYEMAIL: email address to notify
+# $4:  TEMPMSG:  temp message file for email
+# $5:  NOW: yyyy.mm.dd
+# $6:  LOGDETAILFILE
+# ===================================================================
+echo "$0 starting..."
+LOGFILE="$1"
+STEP="$2"
+NOTIFYEMAIL="$3"
+TEMPMSG="$4"
+NOW="$5"
+LOGDETAILFILE="$6"
+#export CASEDIR="case0808"
+export CASEDIR="case1205"
+BASE=$JSON_DIR
+export GMR=$BASE/gmr$NOW
+function extract() {
+  export TARGETDIR=$GMR/$1
+  export SOURCEDIR=$BASE/$CASEDIR
+  cd $TARGETDIR
+  echo "submitting extract for $1 with target: $TARGETDIR and source: $SOURCEDIR"
+  sh runcmd
+  nohup monitorgmrdir $LOGFILE $STEP $SOURCEDIR $TARGETDIR $1 $NOTIFYEMAIL $TEMPMSG $LOGDETAILFILE & 
+}
+dirs='casestudy'
+for d in $dirs; do
+  extract $d
+done
+echo "$0: complete."

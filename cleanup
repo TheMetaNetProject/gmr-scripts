@@ -1,0 +1,37 @@
+#!/bin/bash
+#
+# cleanup: 
+# If running under test=Y, a previous tag was checked out, so master should be checked back out.
+# Assumes the following variables are populated:
+# RDF_DIR:  .owl files and cache
+# CXNS_DIR:  constructions 
+# Does not check for errors; updates log with success and exit 0 
+# $1:  LOGFILE to update with results
+# $2:  STEP number of the overall gmrbuild job
+# $3:  NOTIFYEMAIL: email address to notify
+# $4:  TEMPMSG:  temp message file for email
+# ===================================================================
+umask 0002
+echo "$0 starting..."
+LOGFILE="$1"
+STEP="$2"
+NOTIFYEMAIL="$3"
+TEMPMSG="$4"
+NOWTIME=$(date +"%Y.%m.%d--%H-%M")
+dirs="$CXNS_DIR $RDF_DIR $SEEDS_DIR"
+for d in $dirs; do
+  cd $d
+  git checkout master 
+  echo "$0: git master checked out for $d"
+done
+SUMMARY=$REPORT_DIR/statistics.txt
+cat $SUMMARY >> $LOGFILE
+notify $REPORTEMAIL $SUMMARY
+rm -f $SUMMARY
+echo "$NOWTIME STEP $STEP SUCCESS: $0" >> $LOGFILE
+echo "$0: complete."
+echo "$NOWTIME gmrbuild:  completed $NOW." | tee  $TEMPMSG
+cat $TEMPMSG >> $LOGFILE
+notify $NOTIFYEMAIL $TEMPMSG
+rm -f $TEMPMSG
+exit 0

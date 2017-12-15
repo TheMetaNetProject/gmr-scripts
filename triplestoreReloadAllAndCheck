@@ -1,0 +1,41 @@
+#!/bin/bash
+# ===================================================================
+# Reset and reload the triplestore for servers in the AI and GEN pools, + ambrosia.
+# $1:  LOGFILE to update with results
+# $2:  STEP number of the overall gmrbuild job
+# $3:  NOTIFYEMAIL: email address to notify
+# $4:  TEMPMSG:  temp message file for email
+# $5:  LOGDETAILFILE from gmrbuild, for sesame output
+# ===================================================================
+echo "$0 starting..."
+LOGFILE="$1"
+STEP="$2"
+NOTIFYEMAIL="$3"
+TEMPMSG="$4"
+LOGDETAILFILE="$5"
+if [[ "$TEST" == "Y" ]]; then
+  slist='ambrosia  mirto1 mirto2'
+  NUM=3
+else
+  slist='ambrosia mirto1 mirto2 slivo1 slivo2 mussel1 mussel2 kajiki1 kajiki2 kajiki3 kajiki4 squid7 squid8'
+  NUM=13
+fi
+for s in $slist; do
+  echo "Restarting sesame on $s ..." >> $LOGDETAILFILE
+  ssh $s "/u/metanet/sbin/stopsesame.sh; sleep 30; /u/metanet/sbin/startsesame.sh" >> $LOGDETAILFILE 2>&1
+done
+ENREPO=`grep "Closing repository 'mr_en'" $LOGDETAILFILE | wc -l`
+ESREPO=`grep "Closing repository 'mr_es'" $LOGDETAILFILE | wc -l`
+RUREPO=`grep "Closing repository 'mr_ru'" $LOGDETAILFILE | wc -l`
+FAREPO=`grep "Closing repository 'mr_fa'" $LOGDETAILFILE | wc -l`
+NOWTIME=$(date +"%Y.%m.%d--%H-%M")
+if [[ "$ENREPO" -eq "$NUM" && "$ESREPO" -eq "$NUM" && "$RUREPO" -eq "$NUM" && "$FAREPO" -eq "$NUM" ]]; then
+   echo "$NOWTIME STEP $STEP SUCCESS: $0" >> $LOGFILE
+   exit 0
+else
+   echo "$NOWTIME STEP $STEP FAIL: $0. Expected $NUM 'Closing repository' records in $LOGDETAILFILE for each language; found en=$ENREPO, es=$ESREPO, ru=$RUREPO, fa=$FAREPO." > $TEMPMSG
+   cat $TEMPMSG >> $LOGFILE
+   notify $NOTIFYEMAIL $TEMPMSG
+   rm -f $TEMPMSG
+   exit 1
+fi

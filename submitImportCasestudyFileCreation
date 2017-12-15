@@ -1,0 +1,44 @@
+#!/bin/bash
+# ===================================================================
+# Create the import directory and csv files that will be later imported into the database for the case study  
+# Note:  this must run on ambrosia as it creates and updates the database.
+# Note:  if this step is restarted, it deletes any existing $SOURCE/importCasestudy directory.  Move the directory manually to save it if needed.
+# $1:  LOGFILE to update with results
+# $2:  STEP number of the overall gmrbuild job
+# $3:  NOTIFYEMAIL: email address to notify
+# $4:  TEMPMSG:  temp message file for email
+# $5:  SOURCE formatted gmryyyy.mm.dd
+# $6:  NOWDB  formatted yyyymmdd
+# ===================================================================
+echo "$0 starting..."
+LOGFILE="$1"
+STEP="$2"
+NOTIFYEMAIL="$3"
+TEMPMSG="$4"
+SOURCE="$5"
+NOWDB="$6"
+BASE="$DBSERVER_DIR/$SOURCE"
+IMPORT="$BASE/import"
+if [[  "$CASEONLY" == "Y"  ]]; then
+  echo "building import directory for case, because caseonly=$CASEONLY"
+  cd $BASE
+  rm -rf import
+  mkdir import
+  cd import
+  rsync -ah $HOME/bin/template/import/     .
+  RCRSYNCIMPORT=$?
+  NOWTIME=$(date +"%Y.%m.%d--%H-%M")
+  if [[ "$RCRSYNCIMPORT" -ne 0 ]]; then
+     echo "$NOWTIME STEP $STEP FAIL: $0. Non-zero return code from rsync: $RCRSYNCIMPORT from import directory copy." > $TEMPMSG
+     cat $TEMPMSG >> $LOGFILE
+     notify $NOTIFYEMAIL $TEMPMSG
+     rm -f $TEMPMSG
+     exit 1
+  fi
+fi
+NOWTIME=$(date +"%Y.%m.%d--%H-%M")
+cd $IMPORT
+./gencaseall.sh $NOWDB
+CASECOUNT=`cat "$BASE/casestudy/infiles.txt" | wc -l`
+nohup monitorgenall $LOGFILE $STEP $IMPORT encase $CASECOUNT $NOTIFYEMAIL $TEMPMSG & 
+echo "$0: complete."

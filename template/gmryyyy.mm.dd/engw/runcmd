@@ -1,0 +1,2 @@
+sbatch -c 17 --mem-per-cpu=3000 --mem=51000 --nodelist=mirto1 --partition=ai  m4detect -g -v --disable-dep-check --parallel 17 engw-aa
+sbatch -c 17 --mem-per-cpu=3000 --mem=51000 --nodelist=mirto2 --partition=ai  m4detect -g -v --disable-dep-check --parallel 17 engw-ab

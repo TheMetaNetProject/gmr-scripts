@@ -1,0 +1,4 @@
+sbatch -c 4 --mem-per-cpu=3000 --mem=12000 --nodelist=mirto2 --partition=ai  m4detect -g -v --disable-dep-check --parallel 4 bnc-aa
+sbatch -c 4 --mem-per-cpu=3000 --mem=12000 --nodelist=kajiki3 --partition=speech  m4detect -g -v --disable-dep-check --parallel 4 bnc-ab
+sbatch -c 4 --mem-per-cpu=3000 --mem=12000 --nodelist=kajiki3 --partition=speech  m4detect -g -v --disable-dep-check --parallel 4 bnc-ac
+sbatch -c 4 --mem-per-cpu=3000 --mem=12000 --nodelist=kajiki4 --partition=speech m4detect -g -v --disable-dep-check --parallel 4 bnc-ad

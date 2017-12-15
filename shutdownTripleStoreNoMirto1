@@ -1,0 +1,30 @@
+#!/bin/bash
+# ===================================================================
+# Shutdown the triplestore after extraction. Issues the shutdown command, but doesn't verify the results. 
+# $1:  LOGFILE to update with results
+# $2:  STEP number of the overall gmrbuild job
+# $3:  NOTIFYEMAIL: email address to notify
+# $4:  TEMPMSG:  temp message file for email
+# $5:  LOGDETAILFILE from gmrbuild, for sesame output
+#  Steve Doubleday
+# ===================================================================
+echo "$0 starting..."
+LOGFILE="$1"
+STEP="$2"
+NOTIFYEMAIL="$3"
+TEMPMSG="$4"
+LOGDETAILFILE="$5"
+if [[ "$TEST" == "Y" ]]; then
+  slist='ambrosia  mirto2'
+  NUM=2
+else
+  slist='ambrosia mirto2 slivo1 slivo2 mussel1 mussel2'
+  NUM=6
+fi
+for s in $slist; do
+  echo "Shutting down sesame on $s ..." >> $LOGDETAILFILE
+  ssh $s "/u/metanet/sbin/stopsesame.sh" >> $LOGDETAILFILE 2>&1
+done
+NOWTIME=$(date +"%Y.%m.%d--%H-%M")
+echo "$NOWTIME STEP $STEP SUCCESS: $0" >> $LOGFILE
+exit 0

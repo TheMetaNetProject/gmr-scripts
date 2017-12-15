@@ -1,0 +1,49 @@
+#!/bin/bash
+#
+# Extract linguistic data from the language wiki's and convert to OWL format
+# Rebuild the cache from the OWL files
+# The resulting .owl files and cache directory are committed to git and tagged with $NOW
+# If running regression test (TEST=Y), any uncommitted changes will be stashed,
+#  then the TEST_TAG will be checked out.  
+#  Any stashed changes will be re-applied at the completion of the regression test. 
+# Check the resulting error log
+#  notify if errors and exit 1
+#  else update log with success and exit 0 
+# $1:  LOGFILE to update with results
+# $2:  STEP number of the overall gmrbuild job
+# $3:  NOTIFYEMAIL: email address to notify
+# $4:  TEMPMSG:  temp message file for email
+# $TEST_TAG: current set of .owl files and cache for regression testing
+# ===================================================================
+umask 0002
+echo "$0 starting..."
+LOGFILE="$1"
+STEP="$2"
+NOTIFYEMAIL="$3"
+TEMPMSG="$4"
+TEST_TAG="2014.12.04"
+: ${RDF_DIR:?"RDF_DIR must be set.  Normally done in gmrbuild."}
+cd $RDF_DIR
+gmrcommit $RDF_DIR N "$NOW-prior"
+if [[ ( "$TEST" == "Y" ) && ( -z "$CASEONLY" ) && ( -z "$REFRESH_OWL" ) ]]; then
+  git checkout $TEST_TAG
+  echo "checked out $TEST_TAG in $RDF_DIR"
+else
+  ./updateowl.sh 2>&1
+  gmrcommit $RDF_DIR Y "$NOW"
+fi
+MRFILES=`ls mr*.owl | wc -l`
+CREATEDSCHEMAS=`grep 'creating schema' error.log | wc -l`
+NUM=4
+NOWTIME=$(date +"%Y.%m.%d--%H-%M")
+# time msg, $2 is step
+if [[ "$MRFILES" -eq "$NUM" && "$CREATEDSCHEMAS" -eq "$NUM" ]]; then
+   echo "$NOWTIME STEP $STEP SUCCESS: $0" >> $LOGFILE
+   exit 0
+else
+   echo "$NOWTIME STEP $STEP FAIL: $0. Expected $NUM mr*.owl files (found $MRFILES) and $NUM 'Creating Schema' records in error.log (found $CREATEDSCHEMAS)." > $TEMPMSG
+   cat $TEMPMSG >> $LOGFILE
+   notify $NOTIFYEMAIL $TEMPMSG
+   rm -f $TEMPMSG
+   exit 1
+fi   

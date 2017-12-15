@@ -1,0 +1,49 @@
+#!/bin/bash
+# ===================================================================
+# create the GMR summary report 
+# Note:  this must run on ambrosia
+# $1:  LOGFILE to update with results
+# $2:  STEP number of the overall gmrbuild job
+# $3:  NOTIFYEMAIL: email address to notify
+# $4:  TEMPMSG:  temp message file for email
+# $5:  NOW formatted yyyy.mm.dd
+# $6:  NOWDB database identifier formatted yyyymmdd
+# $7:  LOGDETAILFILE: messages from gen_xca_reports
+# Needs to run against the icsi_gmr_yyyymmdd database, to take advantage of its indices.
+# $NOW $NOWDB $REPORT_DIR $LOGDETAILFILE
+# -Steve Doubleday
+# ===================================================================
+LOGFILE="$1"
+STEP="$2"
+NOTIFYEMAIL="$3"
+TEMPMSG="$4"
+NOW="$5"
+NOWDB="$6"
+LOGDETAILFILE="$7"
+echo "$0 starting..." | tee -a $LOGDETAILFILE
+RPTBASE="$REPORT_DIR/stats_$NOW"
+DBNAME="icsi_gmr_$NOWDB"
+DBPASS="iarpam4"
+STATSFILE="$RPTBASE.txt"
+echo "$STATSFILE"
+TESTFLAG=""
+if [[ "$TEST" == "Y"  ]]; then
+  TESTFLAG="--test"
+fi
+RCERR=0
+echo "gmrstatistics $RPTBASE --gdb-name $DBNAME --gdb-pw xxxxxx --run $NOW -v $TESTFLAG"
+gmrstatistics $RPTBASE --gdb-name $DBNAME --gdb-pw $DBPASS --run $NOW -v $TESTFLAG 
+RCERR=$?
+NOWTIME=$(date +"%Y.%m.%d--%H-%M")
+echo "gmrstatistics returned control at $NOWTIME with rc $RCERR"
+if [[ ( "$RCERR" -eq 0 ) && ( -f "$STATSFILE" )  ]]; then
+   cp $STATSFILE $REPORT_DIR/statistics.txt
+   echo "$NOWTIME STEP $STEP SUCCESS: $0" >> $LOGFILE
+   exit 0
+else
+   echo "$NOWTIME STEP $STEP FAIL: $0. gmrstatistics file $STATSFILE not created.  Details in $LOGDETAILFILE." > $TEMPMSG
+   cat $TEMPMSG >> $LOGFILE
+   notify $NOTIFYEMAIL $TEMPMSG
+   rm -f $TEMPMSG
+   exit 1
+fi 

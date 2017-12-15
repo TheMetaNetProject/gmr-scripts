@@ -1,0 +1,31 @@
+#!/bin/bash
+# ===================================================================
+# copy results files to /xa/metanet on ambrosia
+# Note:  this must run on ambrosia.  Check space first for /xa/metanet
+# $1:  LOGFILE to update with results
+# $2:  STEP number of the overall gmrbuild job
+# $3:  NOTIFYEMAIL: email address to notify
+# $4:  TEMPMSG:  temp message file for email
+# $5:  SOURCE formatted gmryyyy.mm.dd
+# -Steve Doubleday
+# ===================================================================
+echo "$0 starting..."
+LOGFILE="$1"
+STEP="$2"
+NOTIFYEMAIL="$3"
+TEMPMSG="$4"
+SOURCE="$5"
+cd $JSON_DIR
+rsync -ah $SOURCE $DBSERVER_DIR
+RCRSYNC=$?
+NOWTIME=$(date +"%Y.%m.%d--%H-%M")
+if [[ "$RCRSYNC" -eq 0 ]]; then
+   echo "$NOWTIME STEP $STEP SUCCESS: $0" >> $LOGFILE
+   exit 0
+else
+   echo "$NOWTIME STEP $STEP FAIL: $0. Non-zero return code from rsync: $RCRSYNC from $SOURCE copy." > $TEMPMSG
+   cat $TEMPMSG >> $LOGFILE
+   notify $NOTIFYEMAIL $TEMPMSG
+   rm -f $TEMPMSG
+   exit 1
+fi

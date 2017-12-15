@@ -1,0 +1,78 @@
+#!/bin/bash
+#
+# Script to monitor the number of files in a directory 
+# and notify if they are not as expected
+# $1:  LOGFILE from gmrbuild, for sesame output
+# $2:  STEP number of the overall gmrbuild job
+# $3:  source directory containing the target number of files
+# $4:  target directory where corresponding number of files are to be created
+# $5:  identifier, e.g., language or corpus
+# $6:  NOTIFYEMAIL: email address to notify
+# $7:  TEMPMSG:  temp message file for email
+# $8:  LOGDETAILFILE: only for the error message restart command 
+# SJD suppress 'ValueError: substring' until fixed.  9/18/2014
+# ===================================================================
+echo "monitordir:  starting..."
+umask 0002
+LOGFILE="$1"
+STEP="$2"
+SOURCEDIR="$3"
+TARGETDIR="$4"
+ID="$5"
+NOTIFYEMAIL="$6"
+TEMPMSG="$7"
+LOGDETAILFILE="$8"
+PERIODSECONDS=60
+#increased for slow FA 
+NOUPDATEPERIODS=180
+function checkErrors() {
+  DIR=$1
+  cd $DIR
+  SLURMERRORS=`grep 'rror' sl* | grep -v 'terror' | grep -v 'Error running CMS' | grep -v 'raiseParseError' | grep -v 'PCDATA invalid Char' | grep -v "Error: 'NoneType' object has no attribute 'rsplit'" | grep -v 'doc:has' | grep -v 'ValueError: substring' | grep -v 'skipping'| wc -l`
+  if [[ "$SLURMERRORS" == 0 ]]; then
+    return 0
+  else 
+    return 1
+  fi
+}
+cd $TARGETDIR
+SOURCEFILES=`cat infiles.txt | wc -l`
+echo "source directory file count:  $SOURCEFILES"
+TARGETTOTAL=$SOURCEFILES
+echo "source: $SOURCEDIR being compared to target: $TARGETDIR with expected target total $TARGETTOTAL"
+TARGETFILES=0
+PERIODS_NO_UPDATE=0 
+while : 
+do
+  echo "$ID periods w/o update: $PERIODS_NO_UPDATE" 
+  LASTTARGET=$TARGETFILES
+  TARGETFILES=`ls Re* | wc -l`
+  echo "$ID target directory file count: $TARGETFILES of target total: $TARGETTOTAL" 
+  if [[ "$TARGETFILES" == "$LASTTARGET" ]]; then
+     ((PERIODS_NO_UPDATE+=1))
+  else PERIODS_NO_UPDATE=0
+  fi 
+  if [[ "$PERIODS_NO_UPDATE" -ge "$NOUPDATEPERIODS" ]]; then
+   NOWTIME=$(date +"%Y.%m.%d--%H-%M")
+   echo "$NOWTIME STEP $STEP FAIL: $0. No update to $TARGETDIR for $ID in $NOUPDATEPERIODS periods. Exiting. To restart:   nohup monitorgmrdir $LOGFILE $STEP $SOURCEDIR $TARGETDIR $ID $NOTIFYEMAIL $TEMPMSG >> $LOGDETAILFILE 2>&1 &" > $TEMPMSG
+   cat $TEMPMSG >> $LOGFILE
+   notify $NOTIFYEMAIL $TEMPMSG
+   rm -f $TEMPMSG
+   exit 1
+  fi 
+  if [[ "$TARGETFILES" -ge "$TARGETTOTAL" ]]; then
+     checkErrors $TARGETDIR
+     RCERROR=$?
+     NOWTIME=$(date +"%Y.%m.%d--%H-%M")
+     if [[ "$RCERROR" == 0 ]]; then 
+       echo "$NOWTIME STEP $STEP SUCCESS: $0 $TARGETFILES found for $ID in $TARGETDIR." > $TEMPMSG
+     else 
+       echo "$NOWTIME STEP $STEP FAIL: $0 $TARGETFILES found for $ID in $TARGETDIR, but errors found in slurm-*.out or nohup.out files." > $TEMPMSG
+     fi
+     cat $TEMPMSG >> $LOGFILE
+     notify $NOTIFYEMAIL $TEMPMSG
+     rm -f $TEMPMSG
+     exit $RCERROR
+  fi
+  sleep $PERIODSECONDS
+done

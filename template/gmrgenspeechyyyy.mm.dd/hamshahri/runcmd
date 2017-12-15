@@ -1,0 +1,4 @@
+sbatch -c 4 --mem-per-cpu=3000 --mem=12000 --nodelist=slivo1 --partition=gen  m4detect -g -v --disable-dep-check --parallel 4 ham-aa
+sbatch -c 4 --mem-per-cpu=3000 --mem=12000 --nodelist=slivo2 --partition=gen  m4detect -g -v --disable-dep-check --parallel 4 ham-ab
+sbatch -c 4 --mem-per-cpu=3000 --mem=12000 --nodelist=squid7 --partition=speech  m4detect -g -v --disable-dep-check --parallel 4 ham-ac
+sbatch -c 4 --mem-per-cpu=3000 --mem=12000 --nodelist=squid8 --partition=speech  m4detect -g -v --disable-dep-check --parallel 4 ham-ad

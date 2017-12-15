@@ -1,0 +1,1 @@
+nohup m4detect -g -v --disable-dep-check --parallel 9 infiles.txt &> slurm-fake2.out &

@@ -1,0 +1,12 @@
+../../bncjson/BNC_A52.json.gz
+../../bncjson/BNC_B12.json.gz
+repeated errors: 
+slurm-1685674.out:2014-06-12T23:28:05Z - Error running CMS on
+../../bncjson/BNC_A52.json.gz:
+slurm-1685674.out:AttributeError: 'NoneType' object has no attribute
+'startswith'
+slurm-1685674.out:2014-06-13T03:52:35Z - Error running CMS on
+../../bncjson/BNC_B12.json.gz:
+slurm-1685674.out:AttributeError: 'NoneType' object has no attribute
+'startswith'
+

@@ -1,0 +1,97 @@
+#!/bin/bash
+# ===================================================================
+# Script to run IARPA tests against gold standard data
+# Runs under mnauto
+# -Steve Doubleday 
+# ===================================================================
+umask 0002
+#  
+export GOLD_DIR="/u/metanet/IARPATesting/gold"
+export RDF_DIR="/u/metanet/repository/rdf"
+export CXNS_DIR="/u/metanet/extraction/cxns"
+export SEEDS_DIR="/u/metanet/extraction/seeds"
+NOW=$(date +"%Y.%m.%d")
+# setNow is used during regression testing to allow multiple regression
+# tests to run during the same day, without conflicts with each other or with 
+# a normal production GMR run.  
+# looks for the presence of a log file; 
+# adds a suffix "Tn" where n=1, 2, etc.  until an unused filename is found. 
+# NOW format:  yyyy.mm.ddTx
+function setNow() {
+  LOGS="$HOME/logs"
+  SUFFIX=1
+  TEMPNOW="${NOW}T${SUFFIX}"
+  CHECK="gold$TEMPNOW.txt"
+  while [[ -f "$LOGS/$CHECK" ]]
+  do
+    echo "checking for $CHECK"
+    (( SUFFIX += 1))
+    TEMPNOW="${NOW}T${SUFFIX}"
+    CHECK="gold$TEMPNOW.txt"
+  done
+  NOW=$TEMPNOW
+  export NOW
+  echo "NOW value for this GMR test run: $NOW"
+}
+usage() {
+ echo "-c /pathto/some/configfile : m4detect config file; default is /u/metanet/etc/mnsystem.conf" 
+ echo "-r yyyy.mm.ddTx : to rerun"
+ echo "-h : this help"
+}
+echo "$0 starting, using $PYTHONPATH" 
+while getopts "hc:r:" opt; 
+do
+  case $opt in
+    c) export M4CONFIG="$OPTARG";  echo "config file to be used is $M4CONFIG";;
+    r) export OVERRIDE="$OPTARG"; RERUN="Y";  echo "rerun for $OVERRIDE" ;;
+    h) usage ; exit 0;;
+    \?)
+      echo "Invalid option: -$OPTARG" >&2 ; exit 1 ;;
+    :) echo "Option -$OPTARG requires argument" ; usage;  exit 1;;
+  esac
+done
+shift $(($OPTIND - 1))
+if [[ "$RERUN" == "Y" ]]; then
+  echo "overriding $NOW with $OVERRIDE"
+  NOW=$OVERRIDE
+else 
+  setNow "$NOW" 
+fi
+export TEST="Y"
+LOGFILE=$HOME/logs/gold$NOW.txt
+export LOGFILE
+LOGDETAILFILE=$HOME/logs/golddetail$NOW.txt
+export LOGDETAILFILE
+REPORTEMAIL="stevedoubleday@gmail.com,jhong@icsi.berkeley.edu,collinb@icsi.berkeley.edu,hieronym@icsi.berkeley.edu,moorman@icsi.berkeley.edu,mrjasonbolton@gmail.com,lucag@icsi.berkeley.edu,karie.moorman@berkeley.edu,tricia1@uchicago.edu,elstickles@berkeley.edu,oanadavid@berkeley.edu,katia@icsi.berkeley.edu,edodge@icsi.berkeley.edu,luke@icsi.berkeley.edu,behrangaticsi@gmail.com"
+#list of addresses getting the summary report
+NOTIFYEMAIL="stevedoubleday@gmail.com"
+#NOTIFYEMAIL="stevedoubleday@gmail.com,jhong@icsi.berkeley.edu,collinb@icsi.berkeley.edu"
+export NOTIFYEMAIL
+export REPORTEMAIL
+TEMPMSG="tempmsg.txt"
+export TEMPMSG
+export TEMPLATE="iarpatest"
+export REFRESH_OWL="Y"
+NOWTIME=$(date +"%Y.%m.%d--%H-%M")
+echo "$NOWTIME iarpatest:  starting for $NOW, using $PYTHONPATH" | tee -a $LOGFILE 
+cd $HOME/bin
+echo "iarpatest: $HOME/bin git commit:" | tee -a $LOGFILE 
+git log | head >> $LOGFILE
+cd $HOME/mdev
+echo "iarpatest: $HOME/mdev git commit:" | tee -a $LOGFILE 
+git log | head >> $LOGFILE
+cd $HOME/logs
+# runstep executes a step and will wait indefinitely for success
+runstep 1 1 ~/bin updateOwlAndCheck 
+runstep 2 1 ~/bin triplestoreReloadThisAndCheck $LOGDETAILFILE
+runstep 3 1 ~/bin versionConstructionsAndSeeds $NOW 
+runstep 4 1 ~/bin directoryIarpaBuildRunCheck "$NOW $LOGDETAILFILE"
+runstep 5 1 ~/bin shutdownTripleStoreThis $LOGDETAILFILE
+NOWTIME=$(date +"%Y.%m.%d--%H-%M")
+echo "$NOWTIME iarpatest:  completed $NOW." | tee  $TEMPMSG
+echo "Output is $GOLD_DIR/iarpa$NOW/analysis.out. Results are: " >> $TEMPMSG
+cat $GOLD_DIR/iarpa$NOW/analysis.out >> $TEMPMSG
+cat $TEMPMSG >> $LOGFILE
+notify $REPORTEMAIL $TEMPMSG
+rm -f $TEMPMSG
+exit 0

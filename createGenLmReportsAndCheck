@@ -1,0 +1,51 @@
+#!/bin/bash
+# ===================================================================
+# create the gen lm report for casestudies 
+# Note:  this must run on ambrosia
+# $1:  LOGFILE to update with results
+# $2:  STEP number of the overall gmrbuild job
+# $3:  NOTIFYEMAIL: email address to notify
+# $4:  TEMPMSG:  temp message file for email
+# $5:  SOURCE formatted gmryyyy.mm.dd
+# $6:  NOWDB database identifier formatted yyyymmdd
+# $7:  LOGDETAILFILE: messages from gen_xca_reports
+# Needs to run against the icsi_gmr_yyyymmdd database, to take advantage of its indices.
+# -Steve Doubleday
+# ===================================================================
+LOGFILE="$1"
+STEP="$2"
+NOTIFYEMAIL="$3"
+TEMPMSG="$4"
+SOURCE="$5"
+NOWDB="$6"
+LOGDETAILFILE="$7"
+echo "$0 starting..." | tee -a $LOGDETAILFILE
+RPTBASE="$DBSERVER_DIR/$SOURCE/import/casestudydata_$NOWDB"
+RPT1="$RPTBASE.xlsx"
+RCERR=0
+echo "gen_lm_data --mdb-name metanetlm_$NOWDB GUN $RPTBASE"
+gen_lm_data --mdb-name metanetlm_$NOWDB GUN $RPTBASE
+RCERR=$?
+NOWTIME=$(date +"%Y.%m.%d--%H-%M")
+echo "gen_lm_data for case study returned control at $NOWTIME with rc $RCERR"
+if [[ ("$RCERR" -eq 0 )  ]]; then
+   if [[ ( -f $RPT1 ) ]]; then
+     echo "$NOWTIME STEP $STEP SUCCESS: $0 gen lm report generated: $RPT1" > $TEMPMSG
+     cat $TEMPMSG >> $LOGFILE
+     notify $NOTIFYEMAIL $TEMPMSG
+     rm -f $TEMPMSG
+     exit 0
+   else
+     echo "$NOWTIME STEP $STEP FAIL: $0. gen lm report file $RPT1 not created.  Details in $LOGDETAILFILE." > $TEMPMSG
+     cat $TEMPMSG >> $LOGFILE
+     notify $NOTIFYEMAIL $TEMPMSG
+     rm -f $TEMPMSG
+     exit 1
+   fi 
+else 
+   echo "$NOWTIME STEP $STEP FAIL: $0. Non-zero return code $RCERR received when generating gen lm report $RPT1.  Details in $LOGDETAILFILE." > $TEMPMSG
+   cat $TEMPMSG >> $LOGFILE
+   notify $NOTIFYEMAIL $TEMPMSG
+   rm -f $TEMPMSG
+   exit 1
+fi

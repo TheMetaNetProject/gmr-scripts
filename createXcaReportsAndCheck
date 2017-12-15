@@ -1,0 +1,79 @@
+#!/bin/bash
+# ===================================================================
+# create the xca spreadsheet reports to be submitted to IARPA
+# Note:  this must run on metamucil
+# $1:  LOGFILE to update with results
+# $2:  STEP number of the overall gmrbuild job
+# $3:  NOTIFYEMAIL: email address to notify
+# $4:  TEMPMSG:  temp message file for email
+# $5:  SOURCE formatted gmryyyy.mm.dd
+# $6:  NOWDB database identifier formatted yyyymmdd
+# $7:  LOGDETAILFILE: messages from gen_xca_reports
+# Needs to run against the icsi_gmr_yyyymmdd database, to take advantage of its indices.
+# -Steve Doubleday
+# ===================================================================
+LOGFILE="$1"
+STEP="$2"
+NOTIFYEMAIL="$3"
+TEMPMSG="$4"
+SOURCE="$5"
+NOWDB="$6"
+LOGDETAILFILE="$7"
+echo "$0 starting..." | tee -a $LOGDETAILFILE
+RPTBASE="$DBSERVER_DIR/$SOURCE/import/icsi_xca_$NOWDB"
+RPTBASECASE="$DBSERVER_DIR/$SOURCE/import/icsi_xca_casestudy_$NOWDB"
+RPT1="$RPTBASE-tier1.xlsx"
+RPT2="$RPTBASE-tier2.xlsx"
+RPTCASE1="$RPTBASECASE-tier1.xlsx"
+RPTCASE2="$RPTBASECASE-tier2.xlsx"
+DBNAME="icsi_gmr_$NOWDB"
+DBPASS="iarpam4"
+echo "python path: $PYTHONPATH"
+RCERR=0
+if [[  -z "$CASEONLY"  ]]; then
+  echo "gen_xca_reports $RPTBASE --gdb-name $DBNAME --gdb-pw $DBPASS"
+  gen_xca_reports $RPTBASE --gdb-name $DBNAME --gdb-pw $DBPASS 
+  RCERR=$?
+  NOWTIME=$(date +"%Y.%m.%d--%H-%M")
+  echo "gen_xca_reports returned control at $NOWTIME with rc $RCERR"
+fi 
+echo "gen_xca_reports $RPTBASECASE --gdb-name $DBNAME --gdb-pw $DBPASS --case-mode"
+gen_xca_reports $RPTBASECASE --gdb-name $DBNAME --gdb-pw $DBPASS --case-mode 
+RCERRCASE=$?
+NOWTIME=$(date +"%Y.%m.%d--%H-%M")
+echo "gen_xca_reports for case study returned control at $NOWTIME with rc $RCERRCASE"
+if [[ ("$RCERR" -eq 0  && "$RCERRCASE" -eq 0) && ( -z "$CASEONLY"  )  ]]; then
+   if [[ (-f $RPT1 && -f $RPT2 && -f $RPTCASE1 && -f $RPTCASE2) ]]; then
+     echo "$NOWTIME STEP $STEP SUCCESS: $0 xca reports generated: $RPT1 and $RPT2, and case study reports $RPTCASE1 and $RPTCASE2" > $TEMPMSG
+     cat $TEMPMSG >> $LOGFILE
+     notify $NOTIFYEMAIL $TEMPMSG
+     rm -f $TEMPMSG
+     exit 0
+   else
+     echo "$NOWTIME STEP $STEP FAIL: $0. xca report file $RPT1 and $RPT2 not created.  Details in $LOGDETAILFILE." > $TEMPMSG
+     cat $TEMPMSG >> $LOGFILE
+     notify $NOTIFYEMAIL $TEMPMSG
+     rm -f $TEMPMSG
+     exit 1
+   fi 
+elif [[ ( "$RCERRCASE" -eq 0) && ( "$CASEONLY" == "Y"  )  ]]; then
+   if [[ ( -f $RPTCASE1 && -f $RPTCASE2) ]]; then
+     echo "$NOWTIME STEP $STEP SUCCESS: $0 xca case study reports generated: $RPTCASE1 and $RPTCASE2" > $TEMPMSG
+     cat $TEMPMSG >> $LOGFILE
+     notify $NOTIFYEMAIL $TEMPMSG
+     rm -f $TEMPMSG
+     exit 0
+   else
+     echo "$NOWTIME STEP $STEP FAIL: $0. xca report file $RPTCASE1 and $RPTCASE2 not created.  Details in $LOGDETAILFILE." > $TEMPMSG
+     cat $TEMPMSG >> $LOGFILE
+     notify $NOTIFYEMAIL $TEMPMSG
+     rm -f $TEMPMSG
+     exit 1
+   fi  
+else 
+   echo "$NOWTIME STEP $STEP FAIL: $0. Non-zero return code $RCERR received when generating xca reports $RPT1 and $RPT2, and/or non-zero return code $RCERRCASE received for case study reports $RPTCASE1 and $RPTCASE2.  Details in $LOGDETAILFILE." > $TEMPMSG
+   cat $TEMPMSG >> $LOGFILE
+   notify $NOTIFYEMAIL $TEMPMSG
+   rm -f $TEMPMSG
+   exit 1
+fi

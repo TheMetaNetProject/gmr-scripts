@@ -1,0 +1,6 @@
+sbatch -c 19 --mem-per-cpu=3000 --mem=60000 --nodelist=mirto1 --partition=ai  m4detect -g -v --disable-dep-check --parallel 19 engw-aa
+sbatch -c 19 --mem-per-cpu=3000 --mem=60000 --nodelist=mirto2 --partition=ai  m4detect -g -v --disable-dep-check --parallel 19 engw-ab
+sbatch -c 19 --mem-per-cpu=3000 --mem=60000 --nodelist=kajiki1 --partition=speech  m4detect -g -v --disable-dep-check --parallel 19 engw-ac
+sbatch -c 19 --mem-per-cpu=3000 --mem=60000 --nodelist=kajiki2 --partition=speech  m4detect -g -v --disable-dep-check --parallel 19 engw-ad
+sbatch -c 19 --mem-per-cpu=3000 --mem=60000 --nodelist=kajiki3 --partition=speech  m4detect -g -v --disable-dep-check --parallel 19 engw-ae
+sbatch -c 19 --mem-per-cpu=3000 --mem=60000 --nodelist=kajiki4 --partition=speech  m4detect -g -v --disable-dep-check --parallel 19 engw-af

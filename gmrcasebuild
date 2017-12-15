@@ -1,0 +1,148 @@
+#!/bin/bash
+# ===================================================================
+# Script to rebuild the GMR, for case study only
+# Runs under mnauto
+# Runs continually, invoking both immediate steps and batch steps
+# To restart, invoke as "gmrbuild yyyy.mm.dd" 
+# using the yyyy.mm.dd value that was created during the initial run. 
+# All successful steps will be skipped on the restart.  
+# To force later steps to be re-executed, delete their "SUCCESS" records from $LOGFILE.  
+# Note:  kill any running gmrbuild and waitforsuccess tasks and check for and deal with sub-processes started by the current step.
+#   Otherwise, steps that are in progress will be started again.  
+# Note:  check the scripts to be restarted for their side effects. 
+# Note:  Successful restart of step 8 is dependent on the $NOWFILE date string;
+#  will need to be hard-coded if the date has changed since step 7 started
+# To add new addresses to the list of folks who are notified:
+#  NOTIFYEMAIL="stevedoubleday@gmail.com,jhong@icsi.berkeley.edu,newaddress@somewhere.com"
+# Step 4 is the extraction step.  Normally it runs on mirto1/2:
+#runstep 4 1 ~/bin directoryBuildAndCheck "$NOW $LOGDETAILFILE gmryyyy.mm.dd"
+# To have it also use the rest of the gen pool (slivo's & mussel's)+ambrosia:
+#runstep 4 1 ~/bin directoryBuildAndCheck "$NOW $LOGDETAILFILE gmrgenyyyy.mm.dd"
+#
+# To run as a regression test:  "gmrbuild test" (case sensitive)
+# The regression test will add a "Tn" suffix to the $NOW value, e.g., yyyy.mm.ddT1
+# See setNow() function below for details 
+# To restart a regression test:  "gmrbuild test yyyy.mm.ddT1"
+# -Steve Doubleday 
+# ===================================================================
+umask 0002
+export JSON_DIR="/n/picnic/xw/metanet/corpora/json"
+export DBSERVER_DIR="/xa/metanet"
+export RDF_DIR="/u/metanet/repository/rdf"
+export CXNS_DIR="/u/metanet/extraction/cxns"
+export GMR_DIR="/u/metanet/repository/gmrdumps"
+export SEEDS_DIR="/u/metanet/extraction/seeds"
+NOW=$(date +"%Y.%m.%d")
+# setNow is used during regression testing to allow multiple regression
+# tests to run during the same day, without conflicts with each other or with 
+# a normal production GMR run.  
+# looks for the presence of a log file; 
+# adds a suffix "Tn" where n=1, 2, etc.  until an unused filename is found. 
+# NOW format:  yyyy.mm.ddTx
+function setNow() {
+  LOGS="$HOME/logs"
+  SUFFIX=1
+  TEMPNOW="${NOW}T${SUFFIX}"
+  CHECK="gmr$TEMPNOW.txt"
+  while [[ -f "$LOGS/$CHECK" ]]
+  do
+    echo "checking for $CHECK"
+    (( SUFFIX += 1))
+    TEMPNOW="${NOW}T${SUFFIX}"
+    CHECK="gmr$TEMPNOW.txt"
+  done
+  NOW=$TEMPNOW
+  export NOW
+  echo "NOW value for this GMR test run: $NOW"
+}
+if [[ -z "$1" ]]; then
+  echo "GMRBUILD: running GMR for $NOW, using $PYTHONPATH"
+elif [[ "$1" == "test" ]]; then
+    TEST="Y"
+    export TEST
+    if [[ -z "$2" ]]; then
+      setNow "$NOW"
+      echo "GMRBUILD: running GMR regression test, using $PYTHONPATH"
+    else
+      NOW="$2"
+      echo "GMRBUILD: re-running GMR regression test for $NOW, using $PYTHONPATH"
+    fi
+else
+  NOW="$1"
+  echo "GMRBUILD: re-running GMR for $NOW"
+fi
+export NOW
+NOWDB=`echo "$NOW" | sed 's/\.//g'`
+echo "NOWDB = $NOWDB"
+LOGFILE=$HOME/logs/gmr$NOW.txt
+export LOGFILE
+LOGDETAILFILE=$HOME/logs/gmrdetail$NOW.txt
+export LOGDETAILFILE
+NOTIFYEMAIL="stevedoubleday@gmail.com"
+FINISHEMAIL="stevedoubleday@gmail.com,jhong@icsi.berkeley.edu,collinb@icsi.berkeley.edu,lucag@icsi.berkeley.edu,hieronym@icsi.berkeley.edu,moorman@icsi.berkeley.edu,edodge@icsi.berkeley.edu,mrjasonbolton@gmail.com"
+#NOTIFYEMAIL="stevedoubleday@gmail.com,jhong@icsi.berkeley.edu"
+#NOTIFYEMAIL="stevedoubleday@gmail.com,jhong@icsi.berkeley.edu,collinb@icsi.berkeley.edu"
+export NOTIFYEMAIL
+export FINISHEMAIL
+TEMPMSG="tempmsg.txt"
+export TEMPMSG
+export CASEONLY="Y"
+NOWTIME=$(date +"%Y.%m.%d--%H-%M")
+echo "$NOWTIME gmrcasebuild:  starting for $NOW, with NOWDB=$NOWDB, using $PYTHONPATH" | tee -a $LOGFILE
+cd $HOME/bin
+echo "gmrcasebuild: $HOME/bin git commit:" | tee -a $LOGFILE
+git log | head >> $LOGFILE
+cd $HOME/mdev
+echo "gmrcasebuild: $HOME/mdev git commit:" | tee -a $LOGFILE
+git log | head >> $LOGFILE
+cd $HOME/logs
+# runstep executes a step and will wait indefinitely for success
+# $1: the number of this step
+# $2: the number of success records required for this step in $LOGFILE
+# $3: directory from which to execute the script
+# $4: script to execute
+# $5: (optional) string of arguments to the script
+# Scripts have these responsiblities
+#  Take $LOGFILE as $1, $STEP as $2, $NOTIFYEMAIL as $3, $TEMPMSG as $4, optional $ARGS as $5
+#  Run in foreground, submitting long-running processes in background
+#  If successful, add one record per independent process to $LOGFILE, 
+#  in format:  $NOWTIME STEP $STEP SUCCESS .... 
+#  exit code 0
+#  else add record $NOWTIME STEP $STEP FAIL with explanation
+#  exit code 1
+#  use notify script to alert support to failure [optionally, success]
+function runstep() {
+  STEP="$1"
+  NUMSUCCESS="$2"
+  EXECDIR="$3"
+  SCRIPT="$4"
+  ARGS="$5"
+  NOWTIME=$(date +"%Y.%m.%d--%H-%M")
+  stepcheck $LOGFILE $STEP $NUMSUCCESS
+  if [[ "$?" == 1  ]]; then
+     echo "$NOWTIME Step $STEP: executing $SCRIPT."
+     cd $EXECDIR 
+     ./$SCRIPT $LOGFILE $STEP $NOTIFYEMAIL $TEMPMSG $ARGS >> $LOGDETAILFILE 2>&1
+     waitforsuccess $LOGFILE $STEP $NUMSUCCESS
+  fi
+}
+runstep 1 1 ~/bin updateOwlAndCheck
+runstep 2 1 ~/bin triplestoreReloadAndCheck $LOGDETAILFILE
+runstep 3 1 ~/bin versionConstructionsAndSeeds "$NOW $LOGDETAILFILE"
+runstep 4 1 ~/bin directoryBuildAndCheck "$NOW $LOGDETAILFILE gmrcase"
+runstep 5 1 ~/bin submitCaseStudy $NOW $LOGDETAILFILE
+runstep 6 1 ~/bin shutdownTripleStore $LOGDETAILFILE
+#runstep 7 1 ~/bin submitCouchdbImportsCase "gmr$NOW $LOGDETAILFILE"
+runstep 8 1 ~/bin copyResultsAndCheck "gmr$NOW" 
+runstep 9 1 ~/bin submitImportCasestudyFileCreation "gmr$NOW $NOWDB" 
+runstep 10 1 ~/bin importCaseStudyToDatabase "gmr$NOW $NOWDB" 
+runstep 11 1 ~/bin createXcaReportsAndCheck  "gmr$NOW $NOWDB $LOGDETAILFILE"  
+runstep 12 1 ~/bin createGenLmReportsAndCheck "gmr$NOW $NOWDB $LOGDETAILFILE"  
+runstep 13 1 ~/bin cleanup "$NOW $LOGDETAILFILE"
+NOWTIME=$(date +"%Y.%m.%d--%H-%M")
+echo "$NOWTIME gmrbuild for casestudy:  completed $NOW." | tee  $TEMPMSG
+echo "Reports icsi* and casestudy* are in /xa/metanet/gmr$NOW/import/" | tee >> $TEMPMSG
+cat $TEMPMSG >> $LOGFILE
+notify $FINISHEMAIL $TEMPMSG
+rm -f $TEMPMSG
+exit 0

@@ -1,0 +1,24 @@
+#!/bin/bash
+# ===================================================================
+# Submit four processes on the mirtos to load the extract files to Couchdb
+# $1:  LOGFILE to update with results
+# $2:  STEP number of the overall gmrbuild job
+# $3:  NOTIFYEMAIL: email address to notify
+# $4:  TEMPMSG:  temp message file for email
+# $5:  SOURCE formatted gmryyyy.mm.dd
+# $6:  LOGDETAILFILE from gmrbuild, for  output
+#  Steve Doubleday
+# ===================================================================
+echo "$0 starting..."
+LOGFILE="$1"
+STEP="$2"
+NOTIFYEMAIL="$3"
+TEMPMSG="$4"
+SOURCE="$5"
+LOGDETAILFILE="$6"
+echo "Starting couchdb insert on mirto1 for casestudy only" >> $LOGDETAILFILE
+echo "ssh mirto1 /n/banquet/dc/mnauto/bin/runCouchdb.sh $JSON_DIR/$SOURCE/casestudy" >> $LOGDETAILFILE 
+ssh mirto1 "/n/banquet/dc/mnauto/bin/runCouchdb.sh $JSON_DIR/$SOURCE/casestudy" >> $LOGDETAILFILE 2>&1
+NOWTIME=$(date +"%Y.%m.%d--%H-%M")
+echo "$NOWTIME STEP $STEP SUCCESS: $0" >> $LOGFILE
+exit 0
